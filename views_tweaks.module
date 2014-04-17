@@ -1,0 +1,77 @@
+<?php
+/**
+* Implementation of hook_form_alter().
+*/
+function views_tweaks_form_alter(&$form, $form_state, $form_id) {
+//
+  // Load up a $view object like we would expect to work with
+ 
+
+  if (isset($form['#parameters'][1]['view'])) {
+     $view = $form['#parameters'][1]['view'];
+  }
+  if($form_id=='views_exposed_form' && 1==2) {
+    if ($form_state['view']->name=='listings' || $form_state['view'] == 'listingsm') {  //check if the view is a listing view
+        views_tweaks_range_to_select('field_listprice_value', array(
+          '0,99999' => ' < 100,000',
+          '100000,199999' => '100,000 to 199,999',
+          '200000,499999' => '200,000 to 499,999',
+          '500000,749999' => '500,000 to 750,000',
+          '750000,9999999' => '750,000+',
+        ), $form, $form_state);
+    }
+  }
+}
+
+/**
+* Turn a range field into a select dropdown. This assumes that the $options array
+* is going to be something like: array('5,9' => '5 to 9 lbs') where the index is
+* a comma delimited string of the min/max values. 
+* Pass in $optional = TRUE if you want there to be an <any> value at the top of
+* the select dropdown. Defaults to TRUE.
+*/
+function views_tweaks_range_to_select($field, $options, &$form, &$form_state, $optional = TRUE) {
+  $form[$field]['#type'] = 'select';
+  $form[$field]['#default_value'] = 'All';
+  $form[$field]['#size'] = 'NULL';
+  if ($optional) {
+    $options = array_merge(array('All' => '--Any--'), $options);
+  }
+  $form[$field]['#options'] = $options;
+  unset($form[$field]['min']);
+  unset($form[$field]['max']);
+  if (isset($form_state['input'][$field])) {
+    $f = $form_state['input'][$field];
+    $f ? $form[$field]['#value'] = $f : true;
+    if(empty($form[$field]['#value'])){$form[$field]['#value']='All';}
+    $form[$field]['#element_validate'] = array('views_tweaks_range_validate');
+  }  
+  
+}
+/**
+* Turn values created by range_to_select back into ranges so that Views can process
+* the request. This assumes that if the value passed in is 'All' the min/max array
+* should be set to array('min' => '', 'max' => '')
+*/
+function views_tweaks_range_validate($element, &$form_state) {
+if ((
+
+$v = $element['#value'])) {
+    if ($v == 'All') {
+      $min = $max = '';
+    }else {
+    if(is_array($v)){$min=$max='';}else{
+      list($min, $max) = explode(',', $v);
+      }
+    }
+    $form_state['input'][$element['#name']] = array(
+      'min' => $min,
+      'max' => $max,
+    );
+    $form_state['values'][$element['#name']] = array(
+      'min' => $min,
+      'max' => $max,
+    );
+  }
+}
+?>
